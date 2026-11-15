@@ -1,0 +1,9 @@
+# Configuração para alojar a API gratuitamente no Render (https://render.com)
+# No Render: New + → Blueprint → escolher este repositório.
+services:
+  - type: web
+    name: perdidosachados-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
