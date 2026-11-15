@@ -1,0 +1,8 @@
+# Base de dados e fotografias geradas ao correr a API
+perdidos_achados.db
+fotos/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
