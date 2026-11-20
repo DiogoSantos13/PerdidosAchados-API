@@ -1,3 +1,5 @@
 flask>=3.0
+# JWT: criar e validar os tokens de autenticação
+pyjwt>=2.8
 # servidor WSGI para produção (Render, Railway, etc.)
 gunicorn>=22.0

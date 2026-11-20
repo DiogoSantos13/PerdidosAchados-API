@@ -44,7 +44,7 @@ e o primeiro pedido depois de um período parado pode demorar ~1 minuto.
 | Método | Caminho | Descrição | Acesso |
 |---|---|---|---|
 | POST | `/api/auth/registar` | Criar conta | livre |
-| POST | `/api/auth/login` | Iniciar sessão (devolve token) | livre |
+| POST | `/api/auth/login` | Iniciar sessão (devolve um token JWT) | livre |
 | POST | `/api/auth/logout` | Terminar sessão (invalida o token) | login |
 | GET | `/api/objetos?tipo=&q=&estado=` | Listar/pesquisar objetos | livre |
 | GET | `/api/objetos/meus` | Objetos do utilizador | login |
@@ -54,10 +54,11 @@ e o primeiro pedido depois de um período parado pode demorar ~1 minuto.
 | DELETE | `/api/objetos/{id}` | Eliminar objeto | dono ou admin |
 | GET | `/api/fotos/{ficheiro}` | Fotografia | livre |
 
-Autenticação: cabeçalho `Authorization: Bearer <token>`. Os tokens expiram ao fim de 30 dias
-e são apagados no servidor ao terminar sessão. Erros devolvem sempre `{"erro": "mensagem"}`.
+Autenticação: **JWT** (JSON Web Token) assinado, enviado no cabeçalho `Authorization: Bearer <token>`.
+Os tokens expiram ao fim de 30 dias e são apagados no servidor ao terminar sessão. Erros devolvem sempre `{"erro": "mensagem"}`.
 
 ## Bibliotecas
 
 - [Flask](https://flask.palletsprojects.com/) (BSD) e Werkzeug (hash das palavras-passe)
+- [PyJWT](https://pyjwt.readthedocs.io/) (MIT) — criar e validar os tokens JWT
 - [Gunicorn](https://gunicorn.org/) (MIT) — servidor para produção

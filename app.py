@@ -7,8 +7,8 @@ Todas as respostas são em JSON. Em caso de erro devolve-se sempre
 com o código HTTP adequado (400, 401, 403, 404, 409...).
 
 Endpoints:
-    POST   /api/auth/registar      cria uma conta e devolve token
-    POST   /api/auth/login         autentica e devolve token
+    POST   /api/auth/registar      cria uma conta e devolve um token JWT
+    POST   /api/auth/login         autentica e devolve um token JWT
     POST   /api/auth/logout        invalida o token atual
     GET    /api/objetos            lista objetos (filtros: tipo, q, estado)
     GET    /api/objetos/meus       lista os objetos do utilizador autenticado
@@ -18,10 +18,15 @@ Endpoints:
     DELETE /api/objetos/<id>       elimina um objeto         (dono ou admin)
     GET    /api/fotos/<ficheiro>   devolve a fotografia de um objeto
 
-Autenticação: cabeçalho HTTP  "Authorization: Bearer <token>".
+Autenticação: JWT (JSON Web Token) com validade temporal, enviado no cabeçalho
+    Authorization: Bearer <token>
+O token é assinado (HS256) e expira ao fim de VALIDADE_SESSAO. Para o logout
+funcionar no servidor, os tokens emitidos também ficam registados na tabela
+"sessoes": um token só é aceite se a assinatura for válida, não tiver expirado
+e ainda constar nessa tabela.
 
 Para correr localmente:
-    pip install flask
+    pip install -r requirements.txt
     python app.py
 """
 
@@ -31,8 +36,9 @@ import os
 import re
 import secrets
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
+import jwt  # PyJWT: criar e validar tokens JWT
 from flask import Flask, g, jsonify, request, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -54,6 +60,9 @@ CATEGORIAS_VALIDAS = (
 REGEX_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # um token deixa de ser válido ao fim deste tempo (obriga a novo login)
 VALIDADE_SESSAO = timedelta(days=30)
+# Segredo usado para assinar os tokens JWT. Em produção vem da variável de
+# ambiente JWT_SEGREDO (no Render é gerada automaticamente pelo render.yaml).
+JWT_SEGREDO = os.environ.get("JWT_SEGREDO", "segredo-de-desenvolvimento-mudar-em-producao-0123456789")
 
 app = Flask(__name__)
 # limita o tamanho dos pedidos (as fotografias chegam em Base64 dentro do JSON)
@@ -141,19 +150,23 @@ def token_do_pedido():
 
 
 def utilizador_autenticado():
-    """Devolve o utilizador dono do token enviado no pedido, ou None.
+    """Devolve o utilizador dono do token JWT enviado no pedido, ou None.
 
-    Tokens com mais de VALIDADE_SESSAO são recusados (sessão expirada).
+    O token tem de ter assinatura válida, não pode ter expirado (claim "exp")
+    e tem de continuar registado na tabela "sessoes" (o logout apaga-o de lá).
     """
     token = token_do_pedido()
     if token is None:
         return None
-    limite = (datetime.now() - VALIDADE_SESSAO).isoformat(timespec="seconds")
+    try:
+        jwt.decode(token, JWT_SEGREDO, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        return None
     return obter_bd().execute(
         """SELECT u.* FROM utilizadores u
            JOIN sessoes s ON s.utilizador_id = u.id
-           WHERE s.token = ? AND s.criado_em >= ?""",
-        (token, limite),
+           WHERE s.token = ?""",
+        (token,),
     ).fetchone()
 
 
@@ -193,8 +206,15 @@ SQL_OBJETOS = """
 
 
 def criar_sessao(utilizador_id):
-    """Gera um token aleatório e regista-o na tabela de sessões."""
-    token = secrets.token_hex(32)
+    """Gera um token JWT assinado e regista-o na tabela de sessões."""
+    agora = datetime.now(timezone.utc)
+    conteudo = {
+        "sub": str(utilizador_id),           # quem é o utilizador
+        "iat": agora,                        # quando foi emitido
+        "exp": agora + VALIDADE_SESSAO,      # quando expira
+        "jti": secrets.token_hex(8),         # identificador único do token
+    }
+    token = jwt.encode(conteudo, JWT_SEGREDO, algorithm="HS256")
     obter_bd().execute(
         "INSERT INTO sessoes (token, utilizador_id, criado_em) VALUES (?, ?, ?)",
         (token, utilizador_id, datetime.now().isoformat(timespec="seconds")),
