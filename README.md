@@ -25,12 +25,21 @@ Para repor os dados iniciais: parar a API, apagar `perdidos_achados.db` e a past
 
 ## Alojar online (Render, gratuito)
 
-1. Em https://render.com: **New + → Blueprint** e escolher este repositório (usa o `render.yaml`).
-2. No fim, o Render dá um endereço `https://perdidosachados-api.onrender.com`.
-3. Na app, mudar `BASE_URL` em `retrofit/RetrofitInitializer.kt` para esse endereço (terminado em `/`).
+1. Em https://render.com criar conta (pode ser com o GitHub ou com um email).
+2. **New + → Blueprint** e escolher este repositório (usa o `render.yaml`). Se o Render não listar o
+   repositório, usar **New + → Web Service → Public Git Repository** e colar o endereço do repositório;
+   *Build Command* `pip install -r requirements.txt` e *Start Command* `gunicorn app:app --bind 0.0.0.0:$PORT`.
+3. No fim, o Render dá um endereço `https://<nome>.onrender.com`. Confirmar em
+   `https://<nome>.onrender.com/api/objetos` que aparece a lista em JSON.
+4. Na app, mudar `BASE_URL` em `retrofit/RetrofitInitializer.kt` para esse endereço (terminado em `/`).
+5. Em *Environment* do serviço deve existir `JWT_SEGREDO` (o `render.yaml` gera-o automaticamente);
+   é com ele que se assinam os tokens de autenticação.
 
-Nota: no plano gratuito a base de dados SQLite é reposta quando o serviço reinicia,
-e o primeiro pedido depois de um período parado pode demorar ~1 minuto.
+Notas sobre o plano gratuito:
+- A base de dados SQLite e as fotografias ficam no disco do serviço, que é reposto quando este reinicia:
+  voltam os dados de exemplo e perdem-se as contas e os objetos criados entretanto.
+- Depois de ~15 minutos sem pedidos o serviço adormece e o primeiro pedido pode demorar cerca de 1 minuto
+  (a app já espera até 60 segundos). Convém abrir o endereço no browser pouco antes de uma demonstração.
 
 ## Contas iniciais
 
