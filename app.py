@@ -171,6 +171,7 @@ def utilizador_autenticado():
 
 
 def utilizador_para_json(u):
+    """Converte um utilizador da BD em JSON (nunca inclui o hash da palavra-passe)."""
     return {"id": u["id"], "nome": u["nome"], "email": u["email"], "papel": u["papel"]}
 
 
@@ -232,6 +233,10 @@ def validar_objeto(dados, parcial):
     campos = {}
 
     def texto(nome, minimo, maximo, etiqueta):
+        """Valida o campo de texto "nome" (entre minimo e maximo caracteres, sem espaços nas pontas).
+
+        Se estiver certo guarda-o em "campos" e devolve None; se não, devolve a mensagem de erro.
+        """
         if nome not in dados:
             return f"O campo '{etiqueta}' é obrigatório." if not parcial else None
         valor = str(dados[nome] or "").strip()
@@ -324,6 +329,7 @@ def apagar_foto(nome):
 # ----------------------------------------------------------------------------
 @app.post("/api/auth/registar")
 def registar():
+    """Cria uma conta nova (valida nome, email e palavra-passe) e devolve já um token JWT."""
     dados = request.get_json(silent=True) or {}
     nome = str(dados.get("nome") or "").strip()
     email = str(dados.get("email") or "").strip().lower()
@@ -354,6 +360,7 @@ def registar():
 
 @app.post("/api/auth/login")
 def login():
+    """Autentica com email e palavra-passe e devolve o token JWT e os dados do utilizador."""
     dados = request.get_json(silent=True) or {}
     email = str(dados.get("email") or "").strip().lower()
     password = str(dados.get("password") or "")
@@ -422,6 +429,7 @@ def listar_objetos():
 
 @app.get("/api/objetos/meus")
 def listar_meus_objetos():
+    """Lista os objetos publicados pelo utilizador autenticado (requer login)."""
     utilizador = utilizador_autenticado()
     if utilizador is None:
         return erro("É necessário iniciar sessão.", 401)
@@ -433,11 +441,13 @@ def listar_meus_objetos():
 
 
 def procurar_objeto(objeto_id):
+    """Procura um objeto pelo id e junta os dados de quem o publicou; devolve None se não existir."""
     return obter_bd().execute(SQL_OBJETOS + " WHERE o.id = ?", (objeto_id,)).fetchone()
 
 
 @app.get("/api/objetos/<int:objeto_id>")
 def obter_objeto(objeto_id):
+    """Devolve um objeto pelo id (o contacto só aparece a quem tem sessão iniciada)."""
     linha = procurar_objeto(objeto_id)
     if linha is None:
         return erro("Objeto não encontrado.", 404)
@@ -446,6 +456,7 @@ def obter_objeto(objeto_id):
 
 @app.post("/api/objetos")
 def criar_objeto():
+    """Publica um objeto novo, depois de validar os campos e de guardar a foto, se vier uma."""
     utilizador = utilizador_autenticado()
     if utilizador is None:
         return erro("É necessário iniciar sessão para publicar.", 401)
@@ -496,6 +507,7 @@ def verificar_permissao(objeto_id):
 
 @app.put("/api/objetos/<int:objeto_id>")
 def alterar_objeto(objeto_id):
+    """Altera um objeto (campos parciais); só o dono ou um administrador pode fazê-lo."""
     _utilizador, linha, resposta = verificar_permissao(objeto_id)
     if resposta:
         return resposta
@@ -525,6 +537,7 @@ def alterar_objeto(objeto_id):
 
 @app.delete("/api/objetos/<int:objeto_id>")
 def eliminar_objeto(objeto_id):
+    """Elimina um objeto e a respetiva fotografia; só o dono ou um administrador pode fazê-lo."""
     _utilizador, linha, resposta = verificar_permissao(objeto_id)
     if resposta:
         return resposta
@@ -537,6 +550,7 @@ def eliminar_objeto(objeto_id):
 
 @app.get("/api/fotos/<path:ficheiro>")
 def obter_foto(ficheiro):
+    """Devolve o ficheiro de uma fotografia guardada na pasta "fotos"."""
     return send_from_directory(PASTA_FOTOS, ficheiro)
 
 
@@ -545,21 +559,25 @@ def obter_foto(ficheiro):
 # ----------------------------------------------------------------------------
 @app.errorhandler(404)
 def nao_encontrado(_e):
+    """Resposta em JSON para endereços que não existem (404)."""
     return erro("Recurso não encontrado.", 404)
 
 
 @app.errorhandler(405)
 def metodo_nao_permitido(_e):
+    """Resposta em JSON para métodos HTTP não suportados pelo endereço (405)."""
     return erro("Método não permitido.", 405)
 
 
 @app.errorhandler(413)
 def demasiado_grande(_e):
+    """Resposta em JSON quando o pedido (por exemplo, a fotografia) excede o limite de tamanho (413)."""
     return erro("A fotografia é demasiado grande.", 413)
 
 
 @app.errorhandler(500)
 def erro_interno(_e):
+    """Resposta em JSON para erros inesperados do servidor (500), sem expor detalhes internos."""
     return erro("Erro interno do servidor.", 500)
 
 

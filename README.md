@@ -16,7 +16,8 @@ python app.py
 ```
 
 Fica em `http://localhost:5000`. **A janela tem de ficar aberta** enquanto se usa a app.
-No emulador Android o computador é `http://10.0.2.2:5000/` (é este o `BASE_URL` da app).
+No emulador Android a app usa `http://localhost:5000/`, depois de correr UMA vez `adb reverse tcp:5000 tcp:5000`
+(ver o README da app). Alternativa: `http://10.0.2.2:5000/` (o computador visto pelo emulador).
 
 Teste rápido no browser: http://localhost:5000/api/objetos deve mostrar a lista em JSON.
 
